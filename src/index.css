@@ -1,0 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Nunito+Sans:wght@400;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* --- Tipografía --- */
+  --font-fiesta: "Montserrat", sans-serif;
+  --font-body: "Nunito Sans", sans-serif;
+
+  /* --- Colores de Romang --- */
+  /* El Sol Dorado */
+  --color-sol-500: #f59e0b; /* Amber 500 */
+  --color-sol-600: #d97706; /* Amber 600 */
+
+  /* El Río al atardecer */
+  --color-rio-800: #1e40af; /* Blue 800 */
+  --color-rio-900: #1e3a8a; /* Blue 900 */
+
+  /* Arena cálida (Fondo principal) */
+  --color-arena: #fffbeb; /* Un crema muy suave (amber-50) */
+  --color-arena-dark: #fef3c7; /* Un poquito más oscuro (amber-100) */
+
+  /* Acento vibrante (Fiesta) */
+  --color-fiesta-pink: #ec4899; /* Pink 500 */
+}
+
+/* Estilos globales para asegurar el mood */
+body {
+  font-family: var(--font-body);
+  background-color: #111827; /* Fondo muy oscuro por si carga mal */
+}
+
+/* Un toque sutil para los botones al presionarlos */
+.btn-active-scale:active {
+  transform: scale(0.97);
+}
