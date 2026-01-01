@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabase";
 import type { Category, MenuItem } from "../../types/types";
 import toast from "react-hot-toast";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
+// IMPORTAMOS LA FUNCIÓN DE COMPRESIÓN
+import { compressImage } from "../../utils/imageOptimizer";
 
 interface Props {
   categories: Category[];
@@ -18,6 +20,8 @@ export const ProductForm = ({
   onSuccess,
 }: Props) => {
   const [loading, setLoading] = useState(false);
+  // Estado para mostrar mensaje de "Comprimiendo..." si quieres ser más específico
+  const [statusMessage, setStatusMessage] = useState("");
 
   // Datos del plato
   const [title, setTitle] = useState("");
@@ -55,6 +59,7 @@ export const ProductForm = ({
     setCategoryId(null);
     setImageFiles(null);
     setIsSelectorOpen(false);
+    setStatusMessage("");
     const fileInput = document.getElementById(
       "file-upload"
     ) as HTMLInputElement;
@@ -68,26 +73,42 @@ export const ProductForm = ({
       return;
     }
     setLoading(true);
+    setStatusMessage("Procesando imágenes...");
 
     try {
       let imageUrls: string[] | undefined;
 
       // Solo subimos fotos SI el usuario seleccionó archivos
       if (imageFiles && imageFiles.length > 0) {
-        const uploadPromises = Array.from(imageFiles).map(async (file) => {
-          const fileExt = file.name.split(".").pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const { error } = await supabase.storage
-            .from("menu-images")
-            .upload(fileName, file);
-          if (error) throw error;
-          const { data } = supabase.storage
-            .from("menu-images")
-            .getPublicUrl(fileName);
-          return data.publicUrl;
-        });
+        // Convertimos FileList a Array para poder usar map
+        const uploadPromises = Array.from(imageFiles).map(
+          async (originalFile) => {
+            // --- PASO 1: COMPRESIÓN ---
+            setStatusMessage(`Optimizando ${originalFile.name}...`);
+            const compressedFile = await compressImage(originalFile);
+
+            // --- PASO 2: SUBIDA ---
+            // Forzamos la extensión .webp porque el optimizador lo convierte a eso
+            const fileName = `${Math.random()}.webp`;
+
+            const { error } = await supabase.storage
+              .from("menu-images")
+              .upload(fileName, compressedFile); // Subimos el comprimido
+
+            if (error) throw error;
+
+            const { data } = supabase.storage
+              .from("menu-images")
+              .getPublicUrl(fileName);
+
+            return data.publicUrl;
+          }
+        );
+
         imageUrls = await Promise.all(uploadPromises);
       }
+
+      setStatusMessage("Guardando datos...");
 
       const itemData = {
         title,
@@ -106,7 +127,6 @@ export const ProductForm = ({
         if (error) throw error;
         toast.success("Plato actualizado");
       } else {
-        // AQUÍ EL CAMBIO: Ya no exigimos fotos para crear
         const { error } = await supabase.from("menu_items").insert(itemData);
         if (error) throw error;
         toast.success("Plato creado");
@@ -119,6 +139,7 @@ export const ProductForm = ({
       toast.error("Ocurrió un error al guardar");
     } finally {
       setLoading(false);
+      setStatusMessage("");
     }
   };
 
@@ -282,16 +303,12 @@ export const ProductForm = ({
       </div>
 
       <div className="p-3 border-2 border-dashed border-gray-300 rounded-xl text-center bg-gray-50 hover:bg-gray-100 transition-colors">
-        <p className="text-xs text-gray-500 mb-2">
-          {/* CAMBIO VISUAL: Texto indica que es opcional siempre */}
-          Fotos del plato (Opcional)
-        </p>
+        <p className="text-xs text-gray-500 mb-2">Fotos del plato (Opcional)</p>
         <input
           id="file-upload"
           type="file"
           accept="image/*"
           multiple
-          // CAMBIO: Ya no es required nunca
           onChange={(e) => setImageFiles(e.target.files)}
           className="text-sm w-full cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-rio-50 file:text-rio-900 hover:file:bg-rio-100"
         />
@@ -299,17 +316,20 @@ export const ProductForm = ({
 
       <button
         disabled={loading}
-        className={`text-white p-4 rounded-xl font-bold font-fiesta shadow-lg transition-colors cursor-pointer mt-2 ${
+        className={`text-white p-4 rounded-xl font-bold font-fiesta shadow-lg transition-colors cursor-pointer mt-2 flex justify-center items-center ${
           itemToEdit
             ? "bg-rio-800 hover:bg-rio-900"
             : "bg-sol-600 hover:bg-sol-700"
-        }`}
+        } ${loading ? "opacity-75 cursor-not-allowed" : ""}`}
       >
-        {loading
-          ? "Guardando..."
-          : itemToEdit
-          ? "Actualizar Plato"
-          : "Agregar al Menú"}
+        {loading ? (
+          // Mensaje dinámico de carga
+          <span>{statusMessage || "Guardando..."}</span>
+        ) : itemToEdit ? (
+          "Actualizar Plato"
+        ) : (
+          "Agregar al Menú"
+        )}
       </button>
     </form>
   );
